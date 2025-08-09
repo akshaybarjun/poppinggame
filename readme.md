@@ -59,59 +59,50 @@ For Software:
     
 4.  **Restart with Fingertip** – Players can hover their fingertip over the Restart button for 1 second to return to the setup screen without touching the mouse or keyboard.
 # Installation
-[commands]
-
-# Run
-[commands]
+     https://akshaybarjun.github.io/poppinggame/
 
 ### Project Documentation
 For Software:
+### Project Documentation  
+#### For Software:
+
+- **Overview:**  
+  The software enables a multiplayer real-time game that detects players’ fingertips via webcam using MediaPipe Hands. Players pop floating shapes by touching them with their fingertips on their side of the screen.
+
+- **Components:**  
+  - **User Interface:** Setup screen, game screen with scores and timer, end screen with results and replay options.  
+  - **Hand Tracking:** MediaPipe Hands library to detect fingertip positions.  
+  - **Game Logic:** Shape spawning, scoring system with penalties and bonuses, timer countdown.  
+  - **Collision Detection:** Checks if fingertip coordinates intersect with shape bounding boxes to register pops.  
+  - **Audio Feedback:** Plays sounds for popping and penalties.  
+  - **Visual Feedback:** Animations for floating score text and flashing score panels.  
+
+- **Flow:**  
+  1. Player inputs names and game duration, then starts the game.  
+  2. Countdown timer runs, followed by active gameplay with shapes spawning.  
+  3. Players pop shapes by hovering their index fingertips over shapes.  
+  4. Scores update live, with penalties applied if players pop opponent’s shapes.  
+  5. When timer ends, game shows winner and options to replay or reload names.
+
+- **Key Libraries/Tools:**  
+  - MediaPipe Hands for hand/fingertip detection.  
+  - Native Web APIs for DOM manipulation, audio, and animations.  
+
+- **Limitations:**  
+  - Requires camera access and good lighting.  
+  - May have reduced accuracy with overlapping or fast hand movements.  
+
+- **Extensibility:**  
+  Modular design enables adding new shapes, power-ups, or multiplayer networking in future versions.
 
 # Screenshots (Add at least 3)
-![Screenshot1](Add screenshot 1 here with proper name)
-*Add caption explaining what this shows*
-
-![Screenshot2](Add screenshot 2 here with proper name)
-*Add caption explaining what this shows*
-
-![Screenshot3](Add screenshot 3 here with proper name)
-*Add caption explaining what this shows*
-
-# Diagrams
-![Workflow](Add your workflow/architecture diagram here)
-*Add caption explaining your workflow*
-
-For Hardware:
-
-# Schematic & Circuit
-![Circuit](Add your circuit diagram here)
-*Add caption explaining connections*
-
-![Schematic](Add your schematic diagram here)
-*Add caption explaining the schematic*
-
-# Build Photos
-![Components](Add photo of your components here)
-*List out all components shown*
-
-![Build](Add photos of build process here)
-*Explain the build steps*
-
-![Final](Add photo of final product here)
-*Explain the final build*
-
-### Project Demo
-# Video
-[Add your demo video link here]
-*Explain what the video demonstrates*
-
-# Additional Demos
-[Add any extra demo materials/links]
+<img width="1866" height="925" alt="Screenshot (1)" src="https://github.com/user-attachments/assets/69b017b3-85dc-4edc-ab79-9d98efcc7d42" />
+<img width="1920" height="891" alt="Screenshot 2025-08-09 083416" src="https://github.com/user-attachments/assets/3bee7c29-a131-4e2e-b617-557e990036a8" />
+<img width="1920" height="912" alt="Screenshot (2)" src="https://github.com/user-attachments/assets/c728754a-401d-43ad-b448-aa28ad6be720" />
 
 ## Team Contributions
-- [Name 1]: [Specific contributions]
-- [Name 2]: [Specific contributions]
-- [Name 3]: [Specific contributions]
+- Akshay B Arjun : Web Design and Developing 
+- Muhammed Shan : Prompt Generation and Creative Idea producer
 
 ---
 Made with ❤️ at TinkerHub Useless Projects 
