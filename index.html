@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Bubble Pop — Finger Control (Final)</title>
+<style>
+:root{
+  --bg1:#0f1724; --panel-bg: rgba(0,0,0,0.38);
+  --p1:#ff4d4d; /* Player1 color (red) */
+  --p2:#3fb0ff; /* Player2 color (blue) */
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;background:linear-gradient(180deg,#051024,#09304a);font-family:Inter,Arial,sans-serif;color:#fff;overflow:hidden}
+.screen{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column}
+.overlay{background:rgba(0,0,0,0.55)}
+/* Setup box */
+#setup{width:360px;padding:18px;border-radius:12px;background:rgba(0,0,0,0.45);text-align:center}
+#setup input{width:calc(100% - 20px);padding:10px;margin:8px;border-radius:8px;border:0;font-size:15px}
+#setup button{padding:10px 16px;border-radius:8px;border:0;background:#06b6d4;color:#022c3a;font-weight:700}
+#setup small{opacity:.85}
+
+/* Game view */
+#game{display:none;position:relative;inset:0;width:100%;height:100%}
+.playerPanel{
+  position:absolute;top:18px;background:var(--panel-bg);padding:10px 14px;border-radius:10px;font-weight:700;
+  display:flex;flex-direction:column;align-items:center;gap:6px;pointer-events:none;
+}
+#p1Panel{left:18px;color:var(--p1)}
+#p2Panel{right:18px;color:var(--p2)}
+#timer{position:absolute;top:18px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.28);padding:8px 12px;border-radius:10px}
+
+/* Center line (pulsing glow) */
+#centerLine{
+  position:absolute;top:0;left:50%;transform:translateX(-50%);width:6px;height:100%;
+  background:rgba(255,255,255,0.12);box-shadow:0 0 10px rgba(255,255,255,0.25);
+  animation:pulseGlow 2s infinite alternate;
+  z-index:4;
+}
+@keyframes pulseGlow{
+  0%{box-shadow:0 0 6px rgba(255,255,255,0.18);opacity:.85}
+  100%{box-shadow:0 0 18px rgba(255,255,255,0.6);opacity:1}
+}
+
+/* Shapes (bubbles) */
+.shape{
+  position:absolute;bottom:-160px;pointer-events:auto;z-index:2;display:block;
+  transform-origin:center center;
+}
+/* P1 color shapes */
+.shape.p1.circle{border-radius:50%;background:var(--p1)}
+.shape.p1.square{background:var(--p1)}
+.shape.p1.triangle{width:0;height:0;border-left:20px solid transparent;border-right:20px solid transparent;border-bottom:40px solid var(--p1)}
+.shape.p1.star{background:var(--p1);clip-path:polygon(50% 0%,61% 35%,98% 35%,68% 57%,79% 91%,50% 70%,21% 91%,32% 57%,2% 35%,39% 35%)}
+
+/* P2 color shapes */
+.shape.p2.circle{border-radius:50%;background:var(--p2)}
+.shape.p2.square{background:var(--p2)}
+.shape.p2.triangle{width:0;height:0;border-left:20px solid transparent;border-right:20px solid transparent;border-bottom:40px solid var(--p2)}
+.shape.p2.star{background:var(--p2);clip-path:polygon(50% 0%,61% 35%,98% 35%,68% 57%,79% 91%,50% 70%,21% 91%,32% 57%,2% 35%,39% 35%)}
+
+/* Floating +1 / -1 text */
+.floatText{
+  position:absolute;font-weight:800;font-size:18px;z-index:30;
+  text-shadow:0 2px 6px rgba(0,0,0,0.6);
+  pointer-events:none;
+  transform:translate(-50%,-50%);
+  opacity:0; transition:all .6s ease;
+}
+
+/* Webcam small preview */
+#webcam{
+  position:fixed;bottom:12px;left:12px;width:220px;height:150px;opacity:0.6;border-radius:8px;border:2px solid rgba(255,255,255,0.14);z-index:50;background:#000;
+  object-fit:cover;
+}
+
+/* Finger marker (visible) */
+.fingerDot{
+  position:fixed;width:20px;height:20px;border-radius:50%;z-index:60;pointer-events:none;
+  transform:translate(-50%,-50%);box-shadow:0 0 10px rgba(255,255,255,0.2);
+  background:rgba(255,255,255,0.95);
+  display:flex;align-items:center;justify-content:center;
+}
+.fingerDot::after{content:'';width:8px;height:8px;border-radius:50%;background:#00aaff;opacity:0.95}
+
+/* End screen */
+#endScreen{display:none;position:fixed;inset:0;display:flex;align-items:center;justify-content:center;z-index:80}
+#endBox{background:rgba(0,0,0,0.6);padding:18px;border-radius:12px;text-align:center}
+#endBox button{margin:8px;padding:10px 14px;border-radius:8px;border:0;background:#06b6d4;color:#022c3a}
+@media(max-width:520px){
+  #webcam{width:140px;height:100px}
+  .fingerDot{width:16px;height:16px}
+}
+</style>
+</head>
+<body>
+
+<!-- Setup screen -->
+<div id="setup" class="screen overlay">
+  <div style="width:360px">
+    <h2 style="margin:6px 0 10px 0">Bubble Pop — Finger Control</h2>
+    <input id="p1name" placeholder="Player 1 name (Left)" />
+    <input id="p2name" placeholder="Player 2 name (Right)" />
+    <input id="gameTime" type="number" placeholder="Game time (seconds)" min="10" value="30" />
+    <div style="margin-top:8px">
+      <button id="startBtn">Start</button>
+    </div>
+    <small>Allow camera access when prompted. Use index fingertip to pop shapes.</small>
+  </div>
+</div>
+
+<!-- Game view -->
+<div id="game" style="display:none">
+  <div id="centerLine"></div>
+  <div id="p1Panel" class="playerPanel"></div>
+  <div id="p2Panel" class="playerPanel" style="right:18px;left:auto"></div>
+  <div id="timer" style="z-index:40"></div>
+  <video id="webcam" autoplay playsinline muted></video>
+  <div id="floatingContainer"></div>
+</div>
+
+<!-- End screen -->
+<div id="endScreen" style="display:none">
+  <div id="endBox">
+    <h2 id="winnerText"></h2>
+    <div>
+      <button id="playAgainBtn">Play Again</button>
+      <button id="reloadBtn" style="background:#9ca3af;color:#021117;margin-left:8px">Reload Names</button>
+    </div>
+  </div>
+</div>
+
+<!-- finger dots container (multiple hands) -->
+<div id="fingerLayer"></div>
+
+<!-- sounds -->
+<audio id="popSound" src="https://actions.google.com/sounds/v1/cartoon/wood_plank_flicks.ogg" preload="auto"></audio>
+<audio id="penaltySound" src="https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg" preload="auto"></audio>
+
+<!-- MediaPipe -->
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+
+<script>
+/* ------------------- State ------------------- */
+let p1Name = '', p2Name = '';
+let p1Score = 0, p2Score = 0;
+let gameTime = 30, timeLeft = 0;
+let spawnTimer = null, tickTimer = null;
+let mpCamera = null;
+const shapesList = ['circle','square','triangle','star'];
+
+/* DOM */
+const setupDiv = document.getElementById('setup');
+const gameDiv = document.getElementById('game');
+const endScreen = document.getElementById('endScreen');
+const p1Panel = document.getElementById('p1Panel');
+const p2Panel = document.getElementById('p2Panel');
+const timerEl = document.getElementById('timer');
+const webcamEl = document.getElementById('webcam');
+const floatingContainer = document.getElementById('floatingContainer');
+const fingerLayer = document.getElementById('fingerLayer');
+const popSound = document.getElementById('popSound');
+const penaltySound = document.getElementById('penaltySound');
+
+/* helpers */
+function rand(min,max){return Math.random()*(max-min)+min}
+function clamp(v,min,max){return Math.max(min,Math.min(max,v))}
+
+/* --- setup/start handlers --- */
+document.getElementById('startBtn').addEventListener('click', ()=> {
+  p1Name = (document.getElementById('p1name').value || 'Player 1').trim();
+  p2Name = (document.getElementById('p2name').value || 'Player 2').trim();
+  gameTime = Math.max(10, parseInt(document.getElementById('gameTime').value) || 30);
+  startGame();
+});
+
+document.getElementById('playAgainBtn').addEventListener('click', ()=> {
+  endScreen.style.display = 'none';
+  startCountdownAndStart();
+});
+document.getElementById('reloadBtn').addEventListener('click', ()=> location.reload());
+
+/* --- start / countdown --- */
+function startGame(){
+  setupDiv.style.display = 'none';
+  gameDiv.style.display = 'block';
+  p1Score = 0; p2Score = 0;
+  updatePanels();
+  startCountdownAndStart();
+  initMediaPipeHands();
+}
+
+function startCountdownAndStart(){
+  // quick 3..2..1
+  let c = 3;
+  timerEl.textContent = 'Get Ready';
+  const ci = setInterval(()=>{
+    timerEl.textContent = c>0 ? `Starting in ${c}` : 'GO!';
+    c--;
+    if(c < 0){ clearInterval(ci); beginRound(); }
+  }, 900);
+}
+
+function beginRound(){
+  timeLeft = gameTime;
+  timerEl.textContent = `Time: ${timeLeft}s`;
+  // tick timer
+  tickTimer = setInterval(()=>{
+    timeLeft--;
+    timerEl.textContent = `Time: ${Math.max(0,timeLeft)}s`;
+    if(timeLeft <= 0) stopRound();
+  }, 1000);
+  // spawner: spawn tick (will spawn triple in final 5s)
+  spawnTimer = setInterval(()=>{
+    if(timeLeft <= 5){
+      for(let i=0;i<3;i++) createShape(true);
+    } else {
+      createShape(false);
+    }
+  }, 700);
+}
+
+/* stop and show winner */
+function stopRound(){
+  clearInterval(tickTimer); tickTimer = null;
+  clearInterval(spawnTimer); spawnTimer = null;
+  // remove shapes
+  document.querySelectorAll('.shape').forEach(s=>s.remove());
+  // show end
+  gameDiv.style.display = 'none';
+  const winnerText = document.getElementById('winnerText');
+  if(p1Score > p2Score) winnerText.textContent = `${p1Name} Wins! (${p1Score} - ${p2Score})`;
+  else if(p2Score > p1Score) winnerText.textContent = `${p2Name} Wins! (${p2Score} - ${p1Score})`;
+  else winnerText.textContent = `It's a Tie! (${p1Score} - ${p2Score})`;
+  endScreen.style.display = 'flex';
+}
+
+/* --- update UI panels --- */
+function updatePanels(){
+  p1Panel.innerHTML = `<div style="font-size:15px">${escapeHtml(p1Name)}</div><div style="font-size:18px;margin-top:6px">Score: ${p1Score}</div>`;
+  p2Panel.innerHTML = `<div style="font-size:15px">${escapeHtml(p2Name)}</div><div style="font-size:18px;margin-top:6px">Score: ${p2Score}</div>`;
+}
+
+/* --- create shapes with random patterns --- */
+function createShape(isChaos=false){
+  const el = document.createElement('div');
+  el.classList.add('shape');
+  const size = isChaos ? rand(28,44) : rand(36,84); // chaos smaller
+  const left = rand(10, window.innerWidth - size - 10);
+  const owner = Math.random() < 0.5 ? 'p1' : 'p2';
+  const type = shapesList[Math.floor(Math.random()*shapesList.length)];
+
+  el.dataset.owner = owner;
+  el.dataset.type = type;
+  el.style.width = (type==='triangle'?0: size + 'px');
+  el.style.height = (type==='triangle'?0: size + 'px');
+  el.style.left = left + 'px';
+  el.style.bottom = '-160px';
+  el.style.zIndex = 2;
+
+  // apply shape class & styling
+  el.classList.add(owner);
+  el.classList.add(type);
+
+  // adjust triangle size via borders:
+  if(type === 'triangle'){
+    const border = Math.round(size);
+    if(owner === 'p1'){ el.style.borderLeft = border/2 + 'px solid transparent'; el.style.borderRight = border/2 + 'px solid transparent'; el.style.borderBottom = border + 'px solid ' + getColor(owner); }
+    else { el.style.borderLeft = border/2 + 'px solid transparent'; el.style.borderRight = border/2 + 'px solid transparent'; el.style.borderBottom = border + 'px solid ' + getColor(owner); }
+  } else if(type === 'star'){
+    el.style.width = size + 'px'; el.style.height = size + 'px';
+    el.style.clipPath = 'polygon(50% 0%,61% 35%,98% 35%,68% 57%,79% 91%,50% 70%,21% 91%,32% 57%,2% 35%,39% 35%)';
+    el.style.background = getColor(owner);
+  } else {
+    // circle or square
+    if(type === 'circle') el.style.borderRadius = '50%';
+    el.style.background = getColor(owner);
+  }
+
+  document.body.appendChild(el);
+
+  // determine movement pattern & duration
+  const progress = (gameTime - timeLeft) / gameTime; // 0..1
+  let multiplier = 1 - (progress * 0.7);
+  multiplier = clamp(multiplier, 0.25, 1);
+  let baseDuration = rand(3.6, 7.2);
+  let duration = baseDuration * multiplier;
+  if(isChaos) duration *= 0.45;
+  duration = Math.max(0.6, duration);
+  el.style.transition = `transform ${duration}s linear, bottom ${duration}s linear`;
+
+  // choose pattern: straight / drift / zig
+  const pattern = Math.random();
+  if(pattern < 0.55){
+    // straight (with slight x jitter)
+    const jitter = rand(-30,30);
+    requestAnimationFrame(()=> {
+      el.style.transform = `translate(${jitter}px, -${window.innerHeight + 200}px)`;
+    });
+  } else if(pattern < 0.85){
+    // drifting: moderate sideways movement (CSS animation via JS)
+    const drift = rand(-120,120);
+    el.style.transitionTimingFunction = 'linear';
+    requestAnimationFrame(()=> {
+      el.style.transform = `translate(${drift}px, -${window.innerHeight + 200}px)`;
+    });
+  } else {
+    // zig-zag: simulate by chaining small transforms every 250ms
+    zigzagMove(el, duration);
+  }
+
+  // cleanup after duration + small buffer
+  setTimeout(()=> {
+    if(el.parentElement) el.remove();
+  }, (duration + 0.2) * 1000 + 200);
+
+  // click fallback (mouse) — useful if user denies camera
+  el.addEventListener('click', (ev)=>{
+    // determine side clicked by event.clientX
+    const clickedBy = (ev.clientX < window.innerWidth/2) ? 'p1' : 'p2';
+    resolvePop(el, clickedBy);
+  });
+}
+
+/* zig-zag move helper */
+function zigzagMove(el, totalDuration){
+  const steps = Math.max(6, Math.round(totalDuration * 4));
+  let step = 0;
+  const startLeft = parseFloat(el.style.left);
+  const amplitude = rand(60,180);
+  const interval = (totalDuration * 1000) / steps;
+
+  const iv = setInterval(()=>{
+    step++;
+    const t = step / steps;
+    const x = startLeft + Math.sin(t * Math.PI * 4) * amplitude * (1 - t);
+    const y = - (window.innerHeight + 200) * t;
+    el.style.transform = `translate(${x - startLeft}px, ${y}px)`;
+    if(step >= steps){
+      clearInterval(iv);
+    }
+  }, interval);
+}
+
+/* returns hex color for owner id */
+function getColor(owner){
+  return owner === 'p1' ? getComputedStyle(document.documentElement).getPropertyValue('--p1').trim() : getComputedStyle(document.documentElement).getPropertyValue('--p2').trim();
+}
+
+/* resolve pop from clickedBy side */
+function resolvePop(shapeEl, clickedBy){
+  if(!shapeEl || !shapeEl.dataset) return;
+  const owner = shapeEl.dataset.owner; // 'p1' or 'p2'
+  if(clickedBy === owner){
+    // correct
+    if(clickedBy === 'p1'){ p1Score++; spawnFloatText(shapeEl, '+1', getColor('p1')); popSound.currentTime = 0; popSound.play(); flashPanel('p1','score'); }
+    else { p2Score++; spawnFloatText(shapeEl, '+1', getColor('p2')); popSound.currentTime = 0; popSound.play(); flashPanel('p2','score'); }
+  } else {
+    // penalty: clickedBy loses 1 (not below 0), owner gains 1
+    if(clickedBy === 'p1'){ p1Score = Math.max(0,p1Score - 1); p2Score++; spawnFloatText(shapeEl, '-1', '#ff4444'); penaltySound.currentTime=0; penaltySound.play(); flashPanel('p1','penalty'); }
+    else { p2Score = Math.max(0,p2Score - 1); p1Score++; spawnFloatText(shapeEl, '-1', '#ff4444'); penaltySound.currentTime=0; penaltySound.play(); flashPanel('p2','penalty'); }
+  }
+  updatePanels();
+  shapeEl.remove();
+}
+
+/* floating text +1 / -1 */
+function spawnFloatText(el, text, color){
+  const ft = document.createElement('div');
+  ft.className = 'floatText';
+  ft.style.left = (el.getBoundingClientRect().left + el.getBoundingClientRect().width/2) + 'px';
+  ft.style.top = (el.getBoundingClientRect().top + el.getBoundingClientRect().height/2) + 'px';
+  ft.style.color = color;
+  ft.textContent = text;
+  document.body.appendChild(ft);
+  // animate
+  requestAnimationFrame(()=>{
+    ft.style.opacity = 1;
+    ft.style.transform = 'translate(-50%,-120%)';
+  });
+  setTimeout(()=> {
+    ft.style.opacity = 0;
+    ft.style.transform = 'translate(-50%,-160%)';
+    setTimeout(()=> ft.remove(), 400);
+  }, 500);
+}
+
+/* flash panel */
+function flashPanel(owner, type){
+  const panel = owner === 'p1' ? p1Panel : p2Panel;
+  if(type === 'score'){
+    panel.classList.add('flash-score');
+    setTimeout(()=>panel.classList.remove('flash-score'), 380);
+  } else {
+    panel.classList.add('flash-penalty');
+    setTimeout(()=>panel.classList.remove('flash-penalty'), 380);
+  }
+}
+
+/* --- MediaPipe Hands (fingertip detection) --- */
+let handsInstance = null;
+function initMediaPipeHands(){
+  if(handsInstance) return; // already init
+  handsInstance = new Hands({
+    locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+  });
+  handsInstance.setOptions({
+    maxNumHands: 2,
+    modelComplexity: 1,
+    minDetectionConfidence: 0.65,
+    minTrackingConfidence: 0.55
+  });
+
+  handsInstance.onResults(onHandsResults);
+
+  // start camera
+  mpCamera = new Camera(webcamEl, {
+    onFrame: async () => { await handsInstance.send({image: webcamEl}); },
+    width: 640, height: 480, facingMode: 'user'
+  });
+  mpCamera.start();
+}
+
+/* fingertip positions array */
+let fingertipDots = []; // [{id, el, x,y}]
+
+function onHandsResults(results){
+  // remove old dots not used this frame
+  // We'll display one dot per detected hand
+  // Clear finger layer, then render dots anew
+  fingertipDots.forEach(d => d.el.remove());
+  fingertipDots = [];
+
+  // clear small canvas? we use DOM dots for simplicity
+  if(!results.multiHandLandmarks || results.multiHandLandmarks.length === 0) return;
+
+  results.multiHandLandmarks.forEach((landmarks, idx) => {
+    const tip = landmarks[8]; // index fingertip
+    // map normalized coordinates (0..1) to viewport
+    const x = clamp(tip.x * window.innerWidth, 0, window.innerWidth);
+    const y = clamp(tip.y * window.innerHeight, 0, window.innerHeight);
+
+    // create or reuse dot
+    const dot = document.createElement('div');
+    dot.className = 'fingerDot';
+    dot.style.left = x + 'px';
+    dot.style.top = y + 'px';
+    dot.style.background = 'rgba(255,255,255,0.95)';
+    dot.style.zIndex = 9999;
+    document.body.appendChild(dot);
+    fingertipDots.push({id: idx, el: dot, x, y});
+  });
+
+  // process collisions with shapes
+  processFingerCollisions();
+}
+
+/* Check collisions: for each finger dot, check shapes */
+function processFingerCollisions(){
+  if(fingertipDots.length === 0) return;
+  const shapes = Array.from(document.querySelectorAll('.shape'));
+  if(shapes.length === 0) return;
+  const half = window.innerWidth / 2;
+
+  // For each finger, check shape bounding rects
+  fingertipDots.forEach(f => {
+    for(const s of shapes){
+      if(!s.parentElement) continue;
+      const r = s.getBoundingClientRect();
+      // fingertip point f.x,f.y
+      if(f.x >= r.left && f.x <= r.right && f.y >= r.top && f.y <= r.bottom){
+        const clickedBy = (f.x < half) ? 'p1' : 'p2';
+        resolvePop(s, clickedBy);
+        break; // go to next finger
+      }
+    }
+  });
+}
+
+/* Clean up finger dots periodically (if any left) */
+setInterval(()=> {
+  // remove any leftover finger dots older than ~1s (we create fresh each frame)
+  document.querySelectorAll('.fingerDot').forEach(d => {
+    // no-op: they are created each frame and removed next frame, but to be safe:
+    // keep them (they are removed before re-creating), so nothing needed here.
+  });
+}, 1200);
+
+/* utility escape */
+function escapeHtml(s){ return s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+/* update panels every second to ensure scores show */
+setInterval(()=> updatePanels(), 250);
+
+</script>
+</body>
+</html>
