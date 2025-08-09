@@ -9,7 +9,7 @@
 
 
 ### Team Members
-- Team Lead: Muhammed Shan -  College of Engineering Munnar
+- Team Lead: Mohammed Shan -  College of Engineering Munnar
 - Member 2: Akshay B Arjun - College of Engineering Munnar
 - 
 ### Project Description
